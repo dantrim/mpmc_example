@@ -16,6 +16,9 @@
 #include <boost/asio.hpp>
 #include <boost/array.hpp>
 
+//logging
+#include "spdlog/spdlog.h"
+
 #define MAX_UDP_LEN 2500
 typedef boost::array<uint8_t, MAX_UDP_LEN> data_array_t;
 
@@ -24,8 +27,7 @@ class DataListener {
     public :
 
         DataListener(std::string ip, int listen_port, std::shared_ptr<boost::asio::io_service> io_service,
-                        moodycamel::ConcurrentQueue<uint8_t*>* input_queue,
-                        std::map<unsigned int, moodycamel::ConcurrentQueue<DataFragment*>*> & output_queue);
+                        moodycamel::ConcurrentQueue<uint8_t*>* input_queue);
 
         virtual ~DataListener() {
             stop();
@@ -45,9 +47,10 @@ class DataListener {
 
     protected :
 
+        std::shared_ptr<spdlog::logger> logger;
+
         unsigned int m_port;
         moodycamel::ConcurrentQueue<uint8_t*>* m_in_queue;
-        std::map<unsigned int, moodycamel::ConcurrentQueue<DataFragment*>* > m_out_queue;
         std::thread m_thread;
         bool m_active;
         boost::asio::ip::udp::endpoint m_endpoint;

@@ -7,6 +7,8 @@
 #include <map>
 #include <condition_variable>
 #include <mutex>
+#include <memory>
+#include <atomic>
 using namespace std;
 
 // boost
@@ -21,6 +23,11 @@ using namespace std;
 #include "data_listener.h"
 #include "data_builder.h"
 #include "data_fragment.h"
+#include "event_builder.h"
+
+//logging
+//#include "spdlog/spdlog.h"
+
 
 void help()
 {
@@ -29,7 +36,15 @@ void help()
 
 int main(int argc, char* argv[]) {
 
-    cout << "mpmc_test" << endl;
+    // create the logger
+    vector<spdlog::sink_ptr> sinks;
+    auto file_sink = std::make_shared<spdlog::sinks::simple_file_sink_mt>("run.log", /*overwrite existing*/true);
+    auto color_sink = std::make_shared<spdlog::sinks::ansicolor_stdout_sink_mt>();
+    sinks.push_back(file_sink);
+    sinks.push_back(color_sink);
+    auto logger = std::make_shared<spdlog::logger>("mm_ddaq", begin(sinks), end(sinks));
+    logger->set_pattern("[%D %H:%M:%S] [%t] [%^%l%$] %v");
+    spdlog::register_logger(logger);
 
     int n_listeners = 1;
 
@@ -39,14 +54,14 @@ int main(int argc, char* argv[]) {
         if      (in == "-n" || in == "--n-listeners") { n_listeners = std::atoi(argv[++optin]); }
         else if (in == "-h" || in == "--help") { help(); return 0; }
         else {
-            cout << "mpmc_test    error unknown input argument (=" << in << ") provided" << endl;
+            logger->error("unknown input argument ({}) provided", in);
             return 1;
         }
         optin++;
     } // while
     
     if(n_listeners > 3) {
-        cout << "mpmc_test    ERROR currently we only handle <=3 listerns, you requested " << n_listeners << endl;
+        logger->error("currently we only handle <=3 listeners, you requested {}", n_listeners);
         return 1;
     }
 
@@ -56,13 +71,17 @@ int main(int argc, char* argv[]) {
     using moodycamel::ConcurrentQueue;
 
     // this is the main collector queue that everything ends up in
-    ConcurrentQueue<DataFragment*> output_queue;
-    std::map< unsigned int, ConcurrentQueue<DataFragment*>* > output_l1_queue;
+    std::map< unsigned int, ConcurrentQueue<DataFragment*>*>* output_l1_queue =
+        new  std::map<unsigned int, ConcurrentQueue<DataFragment*>* >();
 
     // build the queues that will be used by the listeners
     vector< ConcurrentQueue<uint8_t*>* > listener_queues;
     for(size_t nl = 0; nl < n_listeners; nl++) {
-        listener_queues.push_back( new ConcurrentQueue<uint8_t*>() );
+        if(nl==0) {
+            listener_queues.push_back( new ConcurrentQueue<uint8_t*>(4096) );
+        }
+        else
+            listener_queues.push_back(  listener_queues.at(0) );
     }
 
     // build the listeners
@@ -71,7 +90,7 @@ int main(int argc, char* argv[]) {
     vector<DataListener*> listeners;
     for(size_t nl = 0; nl < n_listeners; nl++) {
         listeners.push_back( new DataListener(ip_address, std::stoi(listen_ports.at(nl)), io_service,
-                listener_queues.at(nl), output_l1_queue) );
+                listener_queues.at(nl)) );
         io_service->post(boost::bind(&DataListener::listen, listeners.at(nl))); //listeners.at(nl), listen));
     }
 
@@ -79,23 +98,29 @@ int main(int argc, char* argv[]) {
     auto map_cond = std::shared_ptr<std::condition_variable>(new std::condition_variable);
     auto map_mutex = std::shared_ptr<std::mutex>(new std::mutex);
 
-
     vector<DataBuilder*> builders;
     for(size_t nl = 0; nl < n_listeners; nl++) {
-        builders.push_back( new DataBuilder( listener_queues.at(nl), output_l1_queue, map_cond, map_mutex) );
+        builders.push_back( new DataBuilder( listener_queues.at(nl), output_l1_queue, map_cond, map_mutex, io_service) );
+        io_service->post(boost::bind(&DataBuilder::build, builders.at(nl)));
     }
+
 
     string flag;
     std::cin >> flag;
 
-    cout << "Starting IO service" << endl;
+    logger->info("starting io services");
 
     for(size_t nl = 0; nl < n_listeners; nl++) listeners.at(nl)->start();
+    for(size_t nl = 0; nl < n_listeners; nl++) builders.at(nl)->start();
+
+    // build the L1 indexer
+    std::shared_ptr<EventBuilder> indexer;
+    indexer = std::make_shared<EventBuilder>( n_listeners, output_l1_queue, map_mutex, map_cond );
 
     std::cin >> flag;
-    cout << "Stoping IO service" << endl;
+    logger->info("stopping io services");
     io_service->stop();
-    cout << "io service stopped ? " << io_service->stopped() << endl;
+    //logger->info("io service stopped? {0}", io_service->stopped());
 
     for(size_t nl = 0; nl < n_listeners; nl++) {
         listeners.at(nl)->stop();
@@ -117,7 +142,9 @@ int main(int argc, char* argv[]) {
     //    delete listener_queues.at(nl);
     //}
 
-    output_l1_queue.clear();
+    output_l1_queue->clear();
+
+    logger->info("Event building stats: frac OK {0:f}\%, BAD {1:f}\% [TOTAL = {2:d}, OK = {3:d}, BAD = {4:d}, MORE = {5:f}%, LESS = {6:f}%, AMB ={7:f}%]", indexer->ok_frac() * 100., indexer->bad_frac() * 100.,  indexer->n_total(), indexer->n_ok(), indexer->n_bad(),indexer->more_frac()*100., indexer->less_frac()*100., indexer->amb_frac()*100. );
 
 
  //   ConcurrentQueue<int> q;

@@ -10,13 +10,13 @@ using namespace std;
 #include <boost/bind.hpp>
 
 DataListener::DataListener(std::string ip_string, int listen_port, std::shared_ptr<boost::asio::io_service> io_service, 
-            moodycamel::ConcurrentQueue<uint8_t*>* input_queue,
-            std::map<unsigned int, moodycamel::ConcurrentQueue<DataFragment*>*> & output_queue) :
+            moodycamel::ConcurrentQueue<uint8_t*>* input_queue) :
         m_port(listen_port),
         m_in_queue(input_queue),
-        m_out_queue(output_queue),
         m_active(true)
 {
+    logger = spdlog::get("mm_ddaq");
+
     stringstream port_str;
     port_str << listen_port;
     m_io_service = io_service;
@@ -28,19 +28,19 @@ DataListener::DataListener(std::string ip_string, int listen_port, std::shared_p
         iter = resolver.resolve(query);
     }
     catch(std::exception& e) {
-        cout << "DataListener::DataListener    Failed to resolve IP endpoint for (IP,port)=("<<ip_string<<"," << port_str.str() << ")" << endl;
+        logger->error("DataListener failed to resolve IP endpoint for (IP,port)=({0},{1})", ip_string, port_str.str());
         exit(1);
     }
     m_endpoint = *iter;
     m_socket = std::make_unique<boost::asio::ip::udp::socket>(*io_service, m_endpoint);
 
-    cout << "DataListener for port " << listen_port << " initialized" << endl;
+    logger->info("DataListener listener for port {} initialized", listen_port);
 }
 
 void DataListener::start()
 {
     m_thread = std::thread( [this]() {
-            std::cout << "DataListener::start    [" << std::this_thread::get_id() << "] listening starting for port " << m_port << std::endl;
+            logger->info("DataListener::start listening starting for port {}", m_port);
             m_io_service->run();
 //            listen();
         });
@@ -63,7 +63,7 @@ void DataListener::handle_receive(const boost::system::error_code& error,
     std::copy(m_receive_buffer.begin(), m_receive_buffer.begin() + n_bytes, data_in);
 
     if(!m_in_queue->enqueue(data_in)) {
-        cout << "DataListner::handle_receive     [" << std::this_thread::get_id() << "] unable to enqueue incoming data for L1 " << std::hex << (unsigned)data_in[0] << std::dec << endl;
+        logger->info("DataListener::handle_receive unable to enqueue incoming data for L1ID {0:x}", (unsigned)data_in[0]);
     }
 
     if(m_active) {

@@ -55,23 +55,30 @@ void sender_thread(int id, std::shared_ptr<boost::asio::io_service> service) {
     sender = std::make_unique<boost::asio::ip::udp::socket>(*service,
                 boost::asio::ip::udp::endpoint(boost::asio::ip::udp::v4(), std::stoi(ports.at(id)) + 10)); // add the offset to not overbind the ports to which the listeners are binding to
 
-    boost::asio::ip::udp::resolver resolver(*service);
-    boost::asio::ip::udp::resolver::query query(boost::asio::ip::udp::v4(), ip, ports.at(id));
-    boost::asio::ip::udp::resolver::iterator iter;
+    vector<boost::asio::ip::udp::endpoint> endpoints;
+    for(int i = 0; i < 3; i++) {
+        boost::asio::ip::udp::resolver resolver(*service);
+        boost::asio::ip::udp::resolver::query query(boost::asio::ip::udp::v4(), ip, ports.at(i));
+        boost::asio::ip::udp::resolver::iterator iter;
 
-    try {
-        iter = resolver.resolve(query);
+        try {
+            iter = resolver.resolve(query);
+        }
+        catch(std::exception& e) {
+            cout << "sender_thread    [id=" << id << "]    Unable to resolve IP endpoint for port = " << ports.at(id) << endl;
+            return;
+        }
+        boost::asio::ip::udp::endpoint endpoint = *iter;
+        endpoints.push_back(endpoint);
     }
-    catch(std::exception& e) {
-        cout << "sender_thread    [id=" << id << "]    Unable to resolve IP endpoint for port = " << ports.at(id) << endl;
-        return;
-    }
-    boost::asio::ip::udp::endpoint endpoint = *iter;
 
     while(true) {
-        vector<uint32_t> data_to_send = { l1id, (uint32_t)data.at(id) };
-        sender->send_to(boost::asio::buffer( data_to_send ), endpoint );
-        std::this_thread::sleep_for(std::chrono::microseconds(10));
+        for(int i = 0; i < 3; i++) {
+            vector<uint32_t> data_to_send = { l1id, (uint32_t)data.at(i) };
+            for(int j = 0; j < 5; j++) data_to_send.push_back(data.at(i));
+            sender->send_to(boost::asio::buffer( data_to_send ), endpoints.at(i) );
+        }
+        std::this_thread::sleep_for(std::chrono::microseconds(500));
         //std::this_thread::sleep_for(std::chrono::milliseconds(1));
         l1id++;
         std::lock_guard<std::mutex> lock(flag_mutex);
@@ -107,6 +114,7 @@ int main(int argc, char* argv[]) {
     vector<std::thread> running_threads;
     for(int i = 0; i < n_senders; i++) {
         running_threads.push_back( std::thread(sender_thread, i, io_service) );
+        break;
     }
 
     std::cin >> continue_sending;

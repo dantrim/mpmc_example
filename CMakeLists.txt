@@ -8,6 +8,7 @@ set(boostlib /usr/local/Cellar/boost160/1.60.0/lib)
 set(Boost_LIBRARIES -L${boostlib} -lboost_thread-mt -lboost_filesystem-mt -lboost_system-mt -lboost_chrono-mt -lboost_atomic-mt -lboost_program_options)
 
 include_directories(include/)
+include_directories(./spdlog/include/)
 
 set(SOURCE_FILES
     # main
@@ -15,12 +16,14 @@ set(SOURCE_FILES
     # stuff
     src/data_listener.cpp
     src/data_builder.cpp
+    src/event_builder.cpp
 )
 
 set(HEADER_FILES
     include/data_fragment.h
     include/data_listener.h
     include/data_builder.h
+    include/event_builder.h
 )
 
 set(SOURCE_FILES_EX

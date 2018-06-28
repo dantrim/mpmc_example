@@ -10,7 +10,7 @@
 class DataFragment {
 
     public :
-        DataFragment(){};
+        DataFragment(){clear();};
 
         void set_l1id(uint32_t l1) { m_l1id = l1; }
         void set_link(int32_t link) { m_link = link; }
@@ -20,7 +20,7 @@ class DataFragment {
 
         std::vector<uint32_t> m_packet;
         void clear() {
-            m_l1id = 0xffffffff;
+            m_l1id = 0x0;
             m_packet.clear();
             m_link = -1;
         }

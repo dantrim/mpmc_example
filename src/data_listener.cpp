@@ -81,7 +81,7 @@ void DataListener::handle_receive(const boost::system::error_code& error,
 
     size_t n32 = n_bytes/4;
     m_data_in.clear();
-    size_t n_bulk = 5;
+    size_t n_bulk = 100;
     
     for(size_t i = 0 ; i < n32; i++)
         m_data_in.push_back(htonl(ntohl(m_receive_buffer.at(i))));
@@ -89,10 +89,10 @@ void DataListener::handle_receive(const boost::system::error_code& error,
     DataFragment fragment;
     fragment.set_link(m_port);
     fragment.set_l1id(m_data_in.at(0));
-  //  stringstream sx;
-  //  for(auto x : m_data_in)
-  //      sx << " " << std::hex << (unsigned)x;
-  //  logger->info("DataListener::handle_receive: data [{2:d} v {3:d}] [L1 {0:x}] = {1}", m_data_in.at(0), sx.str(), n_bytes, n32);
+    //stringstream sx;
+    //for(auto x : m_data_in)
+    //    sx << " " << std::hex << (unsigned)x;
+    //logger->info("DataListener::handle_receive: data [{2:d} v {3:d}] [L1 {0:x}] = {1}", m_data_in.at(0), sx.str(), n_bytes, n32);
     fragment.m_packet = m_data_in;
     m_data_to_enqueue.push_back(fragment);
 

@@ -53,7 +53,6 @@ class DataBuilder {
         moodycamel::ConcurrentQueue<DataFragment>* m_in_queue;
         std::map<unsigned int, moodycamel::ConcurrentQueue<DataFragment>>* m_out_queue;
         std::thread m_thread;
-        bool m_active;
         std::shared_ptr<boost::asio::io_service> m_io_service;
 
         moodycamel::ConsumerToken* consumer_token;

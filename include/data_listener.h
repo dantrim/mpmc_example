@@ -57,7 +57,6 @@ class DataListener {
         DataFragment* m_fragment_in;
         moodycamel::ConcurrentQueue<DataFragment>* m_in_queue;
         std::thread m_thread;
-        bool m_active;
         boost::asio::ip::udp::endpoint m_endpoint;
         data_array_t m_receive_buffer;
         std::shared_ptr<boost::asio::io_service> m_io_service;

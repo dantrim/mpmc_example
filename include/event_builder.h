@@ -67,7 +67,6 @@ class EventBuilder {
 
     protected :
         std::mutex m_store_mutex;
-        bool flushing;
 
         std::shared_ptr<spdlog::logger> logger;
 
@@ -87,7 +86,6 @@ class EventBuilder {
 
         std::map<unsigned int, moodycamel::ConcurrentQueue<DataFragment>>* m_l1_queue;
         std::thread m_thread;
-        bool m_active;
 
 };
 

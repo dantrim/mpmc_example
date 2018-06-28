@@ -26,22 +26,6 @@ void help() {
     cout << " -h|--help         print this help message" << endl;
 }
 
-//class Sender {
-//
-//    public :
-//        Sender(int id, int port) :
-//            m_id(id), m_port(port) {}
-//
-//        std::unique_ptr<boost::asio::ip::udp::socket> socket;
-//
-//        int m_id;
-//        int m_port;
-//
-//        
-//
-//
-//}; // class
-
 void sender_thread(int id, std::shared_ptr<boost::asio::io_service> service) {
 
     cout << "sender_thread    [" << std::this_thread::get_id() << "]   starting up : id = " << id << endl;

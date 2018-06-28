@@ -138,10 +138,7 @@ int main(int argc, char* argv[]) {
         builders.at(nl)->stop();
     }
 
-    //logger->info("press a button to stop the indexer");
-    //std::cin >> flag;
-
-    indexer_flag.store(1);
+    //indexer_flag.store(1);
     indexer->stop();
 
     //std::this_thread::sleep_for(std::chrono::milliseconds(100));
@@ -166,49 +163,6 @@ int main(int argc, char* argv[]) {
     //output_l1_queue->clear();
 
     logger->info("Event building stats: frac OK {0:f}\%, BAD {1:f}\% [TOTAL = {2:d}, OK = {3:d}, BAD = {4:d}, MORE = {5:f}%, LESS = {6:f}%, AMB ={7:f}%]", indexer->ok_frac() * 100., indexer->bad_frac() * 100.,  indexer->n_total(), indexer->n_ok(), indexer->n_bad(),indexer->more_frac()*100., indexer->less_frac()*100., indexer->amb_frac()*100. );
-
-
- //   ConcurrentQueue<int> q;
- //   int dequeued[100] = { 0 };
- //   std::thread threads[20];
- //   
- //   // Producers
- //   for (int i = 0; i != 10; ++i) {
- //   	threads[i] = std::thread([&](int i) {
- //   		for (int j = 0; j != 10; ++j) {
- //   			q.enqueue(i * 10 + j);
- //   		}
- //   	}, i);
- //   }
- //   
- //   // Consumers
- //   for (int i = 10; i != 20; ++i) {
- //   	threads[i] = std::thread([&]() {
- //   		int item;
- //   		for (int j = 0; j != 20; ++j) {
- //   			if (q.try_dequeue(item)) {
- //   				++dequeued[item];
- //   			}
- //   		}
- //   	});
- //   }
- //   
- //   // Wait for all threads
- //   for (int i = 0; i != 20; ++i) {
- //   	threads[i].join();
- //   }
- //   
- //   // Collect any leftovers (could be some if e.g. consumers finish before producers)
- //   int item;
- //   while (q.try_dequeue(item)) {
- //   	++dequeued[item];
- //   }
- //   
- //   // Make sure everything went in and came back out!
- //   for (int i = 0; i != 100; ++i) {
- //   	assert(dequeued[i] == 1);
- //   }
-
 
     return 0;
 } // main

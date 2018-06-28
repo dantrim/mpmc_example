@@ -9,11 +9,14 @@ using namespace std;
 //logging
 #include "spdlog/spdlog.h"
 
-DataBuilder::DataBuilder(moodycamel::ConcurrentQueue<uint8_t*>* input_queue,
-        std::map<unsigned int, moodycamel::ConcurrentQueue<DataFragment*>*> * output_queue,
+DataBuilder::DataBuilder(moodycamel::ConcurrentQueue<DataFragment>* input_queue,
+        std::map<unsigned int, moodycamel::ConcurrentQueue<DataFragment>> * output_queue,
         std::shared_ptr<std::condition_variable> map_condition,
         std::shared_ptr<std::mutex> map_mutex,
-        std::shared_ptr<boost::asio::io_service> io_service) :
+        std::shared_ptr<boost::asio::io_service> io_service,
+        std::atomic_bool & build_flag) :
+            consumer_token(nullptr),
+            producer_token(nullptr),
             m_in_queue(input_queue),
             m_active(true)
 {
@@ -25,14 +28,21 @@ DataBuilder::DataBuilder(moodycamel::ConcurrentQueue<uint8_t*>* input_queue,
     m_map_cond = map_condition;
     m_map_mutex = map_mutex;
 
+    m_build_flag = &build_flag;
+
 //    m_thread = std::thread( [this] () {
 //        build();
 //    });
 }
 void DataBuilder::start() {
     m_thread = std::thread( [this]() {
+        consumer_token = new moodycamel::ConsumerToken(*m_in_queue);
         m_io_service->run();
     });
+}
+
+bool DataBuilder::continue_building() {
+    return m_build_flag->load(std::memory_order_acquire);
 }
 
 void DataBuilder::build()
@@ -43,16 +53,60 @@ void DataBuilder::build()
 
     uint8_t* data_in = nullptr;
 
-    uint32_t current_l1id = 0;
+    unsigned int n_bulk = 50;
+    DataFragment fragments [ n_bulk ];
+
+    uint32_t current_l1id = 0xffffffff;
     bool is_start = true;
 
-    while(m_active) {
-//        m_map_cond->notify_all();
+    while(continue_building()) {
 
         if(m_io_service->stopped()) break;
 
         std::lock_guard<std::mutex> lock(*m_map_mutex);
-        if(m_in_queue->try_dequeue(data_in)) {
+        size_t n_read = m_in_queue->try_dequeue_bulk(*consumer_token, fragments, n_bulk);
+        //logger->info("DataBuilder::build  n_read = {}", n_read);
+        for(size_t ifrag = 0; ifrag < n_read; ifrag++) {
+            uint32_t l1id = fragments[ifrag].l1id();
+            if(fragments[ifrag].link_id() <= 0) continue;
+            //if(l1id<5) {
+            //    logger->info("DataBuilder::build XXX L1ID {0:x} port {1:d}", fragments[ifrag].l1id(), fragments[ifrag].link_id());
+            //}
+            if(m_out_queue->count(l1id)==0)
+                m_out_queue->emplace( l1id, moodycamel::ConcurrentQueue<DataFragment>(128) );
+            //logger->info("DataBuilder::build fragment l1id = {0:d} {1:d}", l1id, fragments[ifrag].link_id());
+            if(!is_start) {
+                if(l1id != (current_l1id+1)) {
+                    logger->warn("DataBuilder::build L1ID out of sync (expected: {0:x}, received: {1:x})", current_l1id+1, l1id);
+                }
+            }
+            current_l1id = l1id;
+            if(!m_out_queue->at(l1id).try_enqueue(fragments[ifrag])) {
+                logger->warn("DataBuilder::build failed to enqueue frag for L1ID {0:x} (L1 Q size = {1:d})", fragments[ifrag].l1id(), m_out_queue->at(l1id).size_approx());
+            }
+            //if(m_out_queue->count(l1id)) {
+            //    //logger->info("DataBuilder::build Q size for L1ID {0:x} = {1:d}", l1id, m_out_queue->at(l1id)->size_approx());
+            //    if(!m_out_queue->at(l1id)->try_enqueue(fragments[ifrag])) {
+            //        logger->warn("DataBuilder::build failed to enqueue frag for L1ID {0:x} (L1 Q size = {1:d})", fragments[ifrag].l1id(), m_out_queue->at(l1id)->size_approx());
+            //    }
+            //}
+            //else {
+            //    m_out_queue->emplace(l1id, new moodycamel::ConcurrentQueue<DataFragment>(128));
+            //    if(!m_out_queue->at(l1id)->try_enqueue(fragments[ifrag])) {
+            //        logger->warn("DataBuilder::build failed to enqueue frag for L1ID {0:x}", fragments[ifrag].l1id());
+            //    }
+            //}
+            m_map_cond->notify_one();
+        } // ifrag
+    } // while
+
+
+        //////// [BULK TEST END]
+/*
+
+
+        std::lock_guard<std::mutex> lock(*m_map_mutex);
+        if(m_in_queue->try_dequeue(*consumer_token, data_in, n_bulk)) {
             //m_map_cond->notify_all();
 
 //            cout << "DataBuilder::build    [" << std::this_thread::get_id() << "]   receive: " << std::hex << (unsigned)data_in[0] << std::dec << "(queue size = " << m_in_queue->size_approx() << ")" <<   endl;
@@ -79,12 +133,14 @@ void DataBuilder::build()
             else {
 
                 if(m_out_queue->count(l1id)) {
-                    m_out_queue->at(l1id)->enqueue(frag);
+                    if(!m_out_queue->at(l1id)->try_enqueue(frag))
+                        logger->warn("DataBuilder::build failed to enqueue frag for L1ID {0:x}", frag->l1id());
                     //logger->info("DataBuilder::build L1Queue size for L1ID = {0:x} is {1:d}", (unsigned)l1id, m_out_queue->at(l1id)->size_approx());
                 }
                 else {
                     m_out_queue->emplace(l1id, new moodycamel::ConcurrentQueue<DataFragment*>(4096));
-                    m_out_queue->at(l1id)->enqueue(frag);
+                    if(!m_out_queue->at(l1id)->try_enqueue(frag))
+                        logger->warn("DataBuilder::build failed to enqueue frag for L1ID {0:x}", frag->l1id());
                     //logger->info("DataBuilder::build L1Queue size for L1ID = {0:x} is {1:d}", (unsigned)l1id, m_out_queue->at(l1id)->size_approx());
                 }
                 m_map_cond->notify_one();
@@ -92,6 +148,7 @@ void DataBuilder::build()
             //lock.unlock();
         }
     } // while active
+*/
 
 }
 

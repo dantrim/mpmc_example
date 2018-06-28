@@ -7,6 +7,7 @@
 #include <thread>
 #include <mutex>
 #include <memory>
+#include <atomic>
 #include <condition_variable>
 
 //mpmc
@@ -24,12 +25,17 @@ class EventBuilder {
     public :
         EventBuilder(
             unsigned int n_links,
-            std::map<unsigned int, moodycamel::ConcurrentQueue<DataFragment*>*>* l1_queue,
-            std::shared_ptr<std::mutex> map_mutex, std::shared_ptr<std::condition_variable> map_cond);
+            std::map<unsigned int, moodycamel::ConcurrentQueue<DataFragment>>* l1_queue,
+            std::shared_ptr<std::mutex> map_mutex, std::shared_ptr<std::condition_variable> map_cond,
+            std::atomic_int & build_flag);
 
         void build();
-
+        void start();
         void stop();
+        int build_flag();
+        int continue_building();
+        void flush();
+        uint32_t n_in_map();
 
         virtual ~EventBuilder() {
             stop();
@@ -61,8 +67,11 @@ class EventBuilder {
 
     protected :
         std::mutex m_store_mutex;
+        bool flushing;
 
         std::shared_ptr<spdlog::logger> logger;
+
+        std::atomic_int * m_build_flag;
 
         std::shared_ptr<std::mutex> m_map_mutex;
         std::shared_ptr<std::condition_variable> m_map_cond;
@@ -76,7 +85,7 @@ class EventBuilder {
         std::map<unsigned int, unsigned int> m_l1_waits;
         std::map<unsigned int, unsigned int> m_l1_counts;
 
-        std::map<unsigned int, moodycamel::ConcurrentQueue<DataFragment*>*>* m_l1_queue;
+        std::map<unsigned int, moodycamel::ConcurrentQueue<DataFragment>>* m_l1_queue;
         std::thread m_thread;
         bool m_active;
 

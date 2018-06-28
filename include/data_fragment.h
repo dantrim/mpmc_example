@@ -10,14 +10,24 @@
 class DataFragment {
 
     public :
-        DataFragment(unsigned int l1id) :
-            m_l1id(l1id) {}
+        DataFragment(){};
 
-        unsigned int l1id() const { return m_l1id; }
+        void set_l1id(uint32_t l1) { m_l1id = l1; }
+        void set_link(int32_t link) { m_link = link; }
+
+        uint32_t l1id() const { return m_l1id; }
+        int32_t link_id() const { return m_link; }
+
+        std::vector<uint32_t> m_packet;
+        void clear() {
+            m_l1id = 0xffffffff;
+            m_packet.clear();
+            m_link = -1;
+        }
 
     private :
-        unsigned int m_l1id;
-        std::vector<unsigned char*> m_packet;
+        uint32_t m_l1id;
+        int32_t m_link;
 
 
 };

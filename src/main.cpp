@@ -71,26 +71,23 @@ int main(int argc, char* argv[]) {
     using moodycamel::ConcurrentQueue;
 
     // this is the main collector queue that everything ends up in
-    std::map< unsigned int, ConcurrentQueue<DataFragment*>*>* output_l1_queue =
-        new  std::map<unsigned int, ConcurrentQueue<DataFragment*>* >();
+    std::map< unsigned int, ConcurrentQueue<DataFragment>>* output_l1_queue =
+        new  std::map<unsigned int, ConcurrentQueue<DataFragment> >();
 
     // build the queues that will be used by the listeners
-    vector< ConcurrentQueue<uint8_t*>* > listener_queues;
-    for(size_t nl = 0; nl < n_listeners; nl++) {
-        if(nl==0) {
-            listener_queues.push_back( new ConcurrentQueue<uint8_t*>(4096) );
-        }
-        else
-            listener_queues.push_back(  listener_queues.at(0) );
-    }
+    ConcurrentQueue<DataFragment>* listener_queue = new ConcurrentQueue< DataFragment >(4096);
 
     // build the listeners
     std::shared_ptr<boost::asio::io_service> io_service;
     io_service = std::make_shared<boost::asio::io_service>();
     vector<DataListener*> listeners;
+    std::atomic_bool listen_flag(true);
+
+    cout << "Main listen_flag = " << &listen_flag << endl;
+
     for(size_t nl = 0; nl < n_listeners; nl++) {
         listeners.push_back( new DataListener(ip_address, std::stoi(listen_ports.at(nl)), io_service,
-                listener_queues.at(nl)) );
+                listener_queue, std::ref(listen_flag) ));
         io_service->post(boost::bind(&DataListener::listen, listeners.at(nl))); //listeners.at(nl), listen));
     }
 
@@ -99,8 +96,9 @@ int main(int argc, char* argv[]) {
     auto map_mutex = std::shared_ptr<std::mutex>(new std::mutex);
 
     vector<DataBuilder*> builders;
+    std::atomic_bool build_flag(true);
     for(size_t nl = 0; nl < n_listeners; nl++) {
-        builders.push_back( new DataBuilder( listener_queues.at(nl), output_l1_queue, map_cond, map_mutex, io_service) );
+        builders.push_back( new DataBuilder( listener_queue,  output_l1_queue, map_cond, map_mutex, io_service, std::ref(build_flag)) );
         io_service->post(boost::bind(&DataBuilder::build, builders.at(nl)));
     }
 
@@ -115,34 +113,57 @@ int main(int argc, char* argv[]) {
 
     // build the L1 indexer
     std::shared_ptr<EventBuilder> indexer;
-    indexer = std::make_shared<EventBuilder>( n_listeners, output_l1_queue, map_mutex, map_cond );
+    std::atomic_int indexer_flag(0);
+    indexer = std::make_shared<EventBuilder>( n_listeners, output_l1_queue, map_mutex, map_cond, std::ref(indexer_flag) );
+
+    std::cin >> flag;
+    logger->info("Starting indexer");
+    indexer->start();
 
     std::cin >> flag;
     logger->info("stopping io services");
     io_service->stop();
     //logger->info("io service stopped? {0}", io_service->stopped());
 
+    listen_flag.store(false);
+
     for(size_t nl = 0; nl < n_listeners; nl++) {
         listeners.at(nl)->stop();
     }
+
+    std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    build_flag.store(false);
 
     for(size_t nl = 0; nl < n_listeners; nl++) {
         builders.at(nl)->stop();
     }
 
-    for(size_t nl = 0; nl < n_listeners; nl++) {
-        delete listeners.at(nl);
-    }
+    //logger->info("press a button to stop the indexer");
+    //std::cin >> flag;
 
-    for(size_t nl = 0; nl < n_listeners; nl++) {
-        delete builders.at(nl);
-    }
+    indexer_flag.store(1);
+    indexer->stop();
+
+    //std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    //indexer->flush();
+    logger->info("indexer stopped with {0:d} L1IDs left unprocessed", indexer->n_in_map());
+
+    //for(size_t nl = 0; nl < n_listeners; nl++) {
+    //    delete listeners.at(nl);
+    //}
+
+    //delete listener_queue;
+
+    //for(size_t nl = 0; nl < n_listeners; nl++) {
+    //    delete builders.at(nl);
+    //}
+
 
     //for(size_t nl = 0; nl < n_listeners; nl++) {
     //    delete listener_queues.at(nl);
     //}
 
-    output_l1_queue->clear();
+    //output_l1_queue->clear();
 
     logger->info("Event building stats: frac OK {0:f}\%, BAD {1:f}\% [TOTAL = {2:d}, OK = {3:d}, BAD = {4:d}, MORE = {5:f}%, LESS = {6:f}%, AMB ={7:f}%]", indexer->ok_frac() * 100., indexer->bad_frac() * 100.,  indexer->n_total(), indexer->n_ok(), indexer->n_bad(),indexer->more_frac()*100., indexer->less_frac()*100., indexer->amb_frac()*100. );
 

@@ -11,6 +11,7 @@
 # 2) moodycamel::concurrentqueue : concurrent, multi-producer, multi-consumer
 #        queueing library
 # 3) libcuckoo: concurrent hash map implementation
+# 4) preshing{junction, turf) : concurrent hash map implementation
 #
 # creates the directory "external" and puts everything in there
 #
@@ -25,6 +26,7 @@
 spdver="v0.17.0"
 cuckoover="v0.2"
 moodyver="v1.0.0-beta-26-g8f7e861" # this is the version that I used in devs
+junctionver="master"
 
 function print_usage {
 
@@ -52,6 +54,10 @@ function check_dir {
 }
 
 function get_queue {
+
+    echo ""
+    echo "INFO: installing moodycamel::ConcurrentQueue"
+    echo ""
 
     # check
     if [[ ! -d "external" ]]; then
@@ -88,6 +94,10 @@ function get_queue {
 
 function get_logger {
 
+    echo ""
+    echo "INFO: installing spdlog"
+    echo ""
+
     if [[ ! -d "external" ]]; then
         echo "ERROR cannot checkout logger, cannot find \"external\" directory in CWD"
         return 1
@@ -121,6 +131,10 @@ function get_logger {
 }
 
 function get_mapper {
+
+    echo ""
+    echo "INFO: installing libcuckoo"
+    echo ""
 
     # check
     if [[ ! -d "external" ]]; then
@@ -156,6 +170,64 @@ function get_mapper {
 
 }
 
+function get_junction {
+
+    echo ""
+    echo "INFO: installing junction and turf"
+    echo ""
+
+    # check
+    if [[ ! -d "external" ]]; then
+        echo "ERROR cannot checkout logger, cannot find \"external\" directory in CWD"
+        return 1
+    fi
+
+    # move
+    pushd external > /dev/null
+
+    # check
+    git clone https://github.com/preshing/junction.git
+    if [[ ! -d "junction" ]]; then
+        echo "ERROR failed installing junction"
+        return 1
+    fi
+
+    # check
+    git clone https://github.com/preshing/turf.git
+    if [[ ! -d "turf" ]]; then
+        echo "ERROR failed installing turf"
+        return 1
+    fi
+
+    # move
+    pushd junction > /dev/null
+    echo $PWD
+
+    mkdir build
+    pushd build > /dev/null
+    echo $PWD
+
+    echo "uname = $(uname)"
+    if [ "$(uname)" != "Darwin" ]; then
+        # assume linux
+        export LDFLAGS=-lrt
+    fi
+
+    cmake -DCMAKE_INSTALL_PREFIX=${PWD} ..
+    make
+
+    # move
+    popd > /dev/null
+
+    # move
+    popd > /dev/null
+
+    # move
+    popd > /dev/null
+
+
+}
+
 function main {
 
     # lets do some arg parsin'
@@ -185,6 +257,8 @@ function main {
     if ! get_logger ; then return 1; fi
 
     if ! get_mapper ; then return 1; fi
+
+    if ! get_junction ; then return 1; fi
 
     echo "all done!"
 }

@@ -10,7 +10,10 @@
 class DataFragment {
 
     public :
-        DataFragment(){clear();};
+        DataFragment() {
+            m_init_time = std::chrono::system_clock::now();
+            clear();
+        };
 
         void set_l1id(uint32_t l1) { m_l1id = l1; }
         void set_link(int32_t link) { m_link = link; }
@@ -25,9 +28,18 @@ class DataFragment {
             m_link = -1;
         }
 
+        void update_time_stamp() {
+            m_init_time = std::chrono::system_clock::now();
+        }
+        const std::chrono::time_point<std::chrono::system_clock> & init_time() { return m_init_time; }
+
+        // timestamp of when this object was initialized
+        
     private :
         uint32_t m_l1id;
         int32_t m_link;
+
+        std::chrono::time_point<std::chrono::system_clock> m_init_time;
 
 
 };

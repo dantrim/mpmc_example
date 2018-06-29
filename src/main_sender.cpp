@@ -56,15 +56,18 @@ void sender_thread(int id, std::shared_ptr<boost::asio::io_service> service) {
         endpoints.push_back(endpoint);
     }
 
+    int n_send = 0;
     while(true) {
-        for(int i = 0; i < 3; i++) {
+        n_send++;
+        for(int i = 0; i < 1; i++) {
             vector<uint32_t> data_to_send = { l1id, (uint32_t)data.at(i) };
             for(int j = 0; j < 6; j++) data_to_send.push_back(data.at(i));
             sender->send_to(boost::asio::buffer( data_to_send ), endpoints.at(i) );
         }
-        std::this_thread::sleep_for(std::chrono::microseconds(100));
+        std::this_thread::sleep_for(std::chrono::microseconds(200));
         //std::this_thread::sleep_for(std::chrono::milliseconds(1));
         l1id++;
+        if(n_send>=50000) { exit(0); break;}
         std::lock_guard<std::mutex> lock(flag_mutex);
         if(continue_sending > 0) break;
     }

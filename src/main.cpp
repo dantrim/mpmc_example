@@ -68,8 +68,11 @@ void test_map_cuckoo()
     logger->info("init hash cap  = {0:d}", l1hash.capacity());
 
     l1hash.insert(0, 42);
-    l1hash.insert(4, 9);
+    l1hash.insert(1, 42);
+    l1hash.insert(3, 42);
     logger->info("hash size = {0:d}", l1hash.size());
+    return;
+    l1hash.insert(4, 9);
     logger->info("find 0? {}", l1hash.find(0));
     l1hash.erase(0);
     logger->info("find 0 post erase? {}", l1hash.contains(0));
@@ -188,7 +191,11 @@ int main(int argc, char* argv[]) {
     //    new  std::map<unsigned int, ConcurrentQueue<DataFragment> >();
 
     // build the queues that will be used by the listeners
-    ConcurrentQueue<DataFragment>* listener_queue = new ConcurrentQueue< DataFragment >(1023);
+    //ConcurrentQueue<DataFragment*>* listener_queue = new ConcurrentQueue< DataFragment* >(1023);
+    vector<ConcurrentQueue<DataFragment*>*> listener_queues;
+    for(int i = 0; i < 3; i++) {
+        listener_queues.push_back( new ConcurrentQueue<DataFragment*>(1023) );
+    }
 
     // build the listeners
     std::shared_ptr<boost::asio::io_service> io_service;
@@ -200,7 +207,7 @@ int main(int argc, char* argv[]) {
 
     for(size_t nl = 0; nl < n_listeners; nl++) {
         listeners.push_back( new DataListener(ip_address, std::stoi(listen_ports.at(nl)), io_service,
-                listener_queue, std::ref(listen_flag) ));
+                listener_queues.at(nl), std::ref(listen_flag) ));
         io_service->post(boost::bind(&DataListener::listen, listeners.at(nl))); //listeners.at(nl), listen));
     }
 
@@ -210,8 +217,9 @@ int main(int argc, char* argv[]) {
 
     vector<DataBuilder*> builders;
     std::atomic_bool build_flag(true);
+
     for(size_t nl = 0; nl < n_listeners; nl++) {
-        builders.push_back( new DataBuilder( listener_queue, std::ref(l1_hash), map_cond, map_mutex, io_service, std::ref(build_flag)) );
+        builders.push_back( new DataBuilder( listener_queues.at(nl), std::ref(l1_hash), map_cond, map_mutex, io_service, std::ref(build_flag)) );
         //builders.push_back( new DataBuilder( listener_queue,  output_l1_queue, map_cond, map_mutex, io_service, std::ref(build_flag)) );
         io_service->post(boost::bind(&DataBuilder::build, builders.at(nl)));
     }
@@ -264,16 +272,12 @@ int main(int argc, char* argv[]) {
     //    delete listeners.at(nl);
     //}
 
-    //delete listener_queue;
 
     //for(size_t nl = 0; nl < n_listeners; nl++) {
     //    delete builders.at(nl);
     //}
 
 
-    //for(size_t nl = 0; nl < n_listeners; nl++) {
-    //    delete listener_queues.at(nl);
-    //}
 
     //output_l1_queue->clear();
 

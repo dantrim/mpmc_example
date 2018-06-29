@@ -15,6 +15,6 @@ using moodycamel::ConcurrentQueue;
 
 typedef junction::ConcurrentMap_Grampa<turf::u32, ConcurrentQueue<DataFragment>* > L1IndexMap;
 
-typedef cuckoohash_map<uint32_t, ConcurrentQueue<DataFragment>*> L1IndexHash;
+typedef cuckoohash_map<uint32_t, ConcurrentQueue<DataFragment*>*> L1IndexHash;
 
 #endif

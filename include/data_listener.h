@@ -28,7 +28,7 @@ class DataListener {
     public :
 
         DataListener(std::string ip, int listen_port, std::shared_ptr<boost::asio::io_service> io_service,
-                        moodycamel::ConcurrentQueue<DataFragment>* input_queue, std::atomic_bool & listen_flag);
+                        moodycamel::ConcurrentQueue<DataFragment*>* input_queue, std::atomic_bool & listen_flag);
 
         virtual ~DataListener() {
             stop();
@@ -50,12 +50,12 @@ class DataListener {
 
         std::atomic_bool* m_listen_flag;
 
-        std::vector<DataFragment> m_data_to_enqueue;
+        std::vector<DataFragment*> m_data_to_enqueue;
 
         unsigned int m_port;
         std::vector<uint32_t> m_data_in;
         DataFragment* m_fragment_in;
-        moodycamel::ConcurrentQueue<DataFragment>* m_in_queue;
+        moodycamel::ConcurrentQueue<DataFragment*>* m_in_queue;
         std::thread m_thread;
         boost::asio::ip::udp::endpoint m_endpoint;
         data_array_t m_receive_buffer;

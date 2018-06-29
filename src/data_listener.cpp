@@ -13,7 +13,7 @@ using namespace std;
 #include <boost/bind.hpp>
 
 DataListener::DataListener(std::string ip_string, int listen_port, std::shared_ptr<boost::asio::io_service> io_service, 
-            moodycamel::ConcurrentQueue<DataFragment>* input_queue, std::atomic_bool & listen_flag) :
+            moodycamel::ConcurrentQueue<DataFragment*>* input_queue, std::atomic_bool & listen_flag) :
         token(nullptr),
         m_port(listen_port),
         m_in_queue(input_queue)
@@ -81,29 +81,33 @@ void DataListener::handle_receive(const boost::system::error_code& error,
 
     size_t n32 = n_bytes/4;
     m_data_in.clear();
-    size_t n_bulk = 100;
+    size_t n_bulk = 5;
     
     for(size_t i = 0 ; i < n32; i++)
         m_data_in.push_back(htonl(ntohl(m_receive_buffer.at(i))));
 
-    DataFragment fragment;
-    fragment.set_link(m_port);
-    fragment.set_l1id(m_data_in.at(0));
+    DataFragment* fragment = new DataFragment();
+    fragment->set_link(m_port);
+    fragment->set_l1id(m_data_in.at(0));
     //stringstream sx;
     //for(auto x : m_data_in)
     //    sx << " " << std::hex << (unsigned)x;
-    //logger->info("DataListener::handle_receive: data [{2:d} v {3:d}] [L1 {0:x}] = {1}", m_data_in.at(0), sx.str(), n_bytes, n32);
-    fragment.m_packet = m_data_in;
+    //logger->info("DataListener::handle_receive: data [{2:d} v {3:d}] [L1 {0:x}] = {1} (port={4:d})", m_data_in.at(0), sx.str(), n_bytes, n32, m_port);
+    fragment->m_packet = m_data_in;
     m_data_to_enqueue.push_back(fragment);
 
-    if(m_data_to_enqueue.size()>=n_bulk) {
-        if(!m_in_queue->try_enqueue_bulk(*token, m_data_to_enqueue.data(), n_bulk)) {
+    if(!m_in_queue->try_enqueue(*token, fragment)) {
             logger->warn("DataListener::handle_receive unable to enqueue incoming data for L1ID {0:x}", (unsigned)m_data_in[0]);
-        }
-        else {
-            m_data_to_enqueue.clear();    
-        }
     }
+
+    //if(m_data_to_enqueue.size()>=n_bulk) {
+    //    if(!m_in_queue->try_enqueue_bulk(*token, m_data_to_enqueue.data(), n_bulk)) {
+    //        logger->warn("DataListener::handle_receive unable to enqueue incoming data for L1ID {0:x}", (unsigned)m_data_in[0]);
+    //    }
+    //    else {
+    //        m_data_to_enqueue.clear();    
+    //    }
+    //}
 
     if(continue_listening()) {
         listen();

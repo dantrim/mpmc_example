@@ -14,8 +14,8 @@ set(Boost_LIBRARIES -L${boostlib} -lboost_thread-mt -lboost_filesystem-mt -lboos
 
 # externals related
 
-set(junctionlib ${CMAKE_SOURCE_DIR}/junction/build)
-set(turflib ${CMAKE_SOURCE_DIR}/junction/build/turf)
+set(junctionlib ${CMAKE_SOURCE_DIR}/external/junction/build)
+set(turflib ${CMAKE_SOURCE_DIR}/external/junction/build/turf)
 set(Junction_LIBRARIES -L${junctionlib} -ljunction)
 set(Turf_LIBRARIES -L${turflib} -lturf)
 

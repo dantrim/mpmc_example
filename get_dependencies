@@ -24,7 +24,7 @@
 ###################################################
 
 spdver="v0.17.0"
-cuckoover="v0.2"
+cuckoover="master"
 moodyver="v1.0.0-beta-26-g8f7e861" # this is the version that I used in devs
 junctionver="master"
 

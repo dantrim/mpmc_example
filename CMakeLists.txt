@@ -3,19 +3,27 @@ project(mpmc_example)
 
 set(CMAKE_CXX_STANDARD 14)
 
+#message("CMAKE SOURCE DIR ${CMAKE_SOURCE_DIR}")
+
+include_directories(include/)
+
+# boost related
 set(boostinclude /usr/local/Cellar/boost160/1.60.0/include)
 set(boostlib /usr/local/Cellar/boost160/1.60.0/lib)
 set(Boost_LIBRARIES -L${boostlib} -lboost_thread-mt -lboost_filesystem-mt -lboost_system-mt -lboost_chrono-mt -lboost_atomic-mt -lboost_program_options)
-set(junctionlib /Users/dantrim/workarea/mpmc_example/preshing/junction/build)
-set(turflib /Users/dantrim/workarea/mpmc_example/preshing/junction/build/turf)
+
+# externals related
+
+set(junctionlib ${CMAKE_SOURCE_DIR}/junction/build)
+set(turflib ${CMAKE_SOURCE_DIR}/junction/build/turf)
 set(Junction_LIBRARIES -L${junctionlib} -ljunction)
 set(Turf_LIBRARIES -L${turflib} -lturf)
 
-include_directories(include/)
-include_directories(./spdlog/include/)
-include_directories(./preshing/junction/)
-include_directories(./preshing/turf/)
-include_directories(/Users/dantrim/workarea/mpmc_example/libcuckoo)
+include_directories(${CMAKE_SOURCE_DIR}/external/junction)
+include_directories(${CMAKE_SOURCE_DIR}/external/turf)
+include_directories(${CMAKE_SOURCE_DIR}/external/spdlog/include/)
+include_directories(${CMAKE_SOURCE_DIR}/external/libcuckoo)
+include_directories(${CMAKE_SOURCE_DIR}/external)
 
 set(SOURCE_FILES
     # main
@@ -42,7 +50,6 @@ set(SOURCE_FILES_EX
 
 add_executable(mpmc_test ${SOURCE_FILES} ${HEADER_FILES})
 target_link_libraries(mpmc_test ${Boost_LIBRARIES} ${Junction_LIBRARIES} ${Turf_LIBRARIES})
-#target_link_libraries(mpmc_test ${BOOST_LIBRARIES})
 
 add_executable(sender ${SOURCE_FILES_EX})
 target_link_libraries(sender ${Boost_LIBRARIES})

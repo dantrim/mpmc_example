@@ -1,0 +1,194 @@
+#!/bin/bash
+
+###################################################
+#
+# get the external dependencies needed
+# for the project
+#
+# checks out:
+#
+# 1) spdlog : efficient, fast, and thread safe logging library
+# 2) moodycamel::concurrentqueue : concurrent, multi-producer, multi-consumer
+#        queueing library
+# 3) libcuckoo: concurrent hash map implementation
+#
+# creates the directory "external" and puts everything in there
+#
+# author: daniel joseph antrim
+# date: June 2018
+# contact:
+#   daniel.joseph.antrim@cern.ch
+#   dantrim@uci.edu
+# 
+###################################################
+
+spdver="v0.17.0"
+cuckoover="v0.2"
+moodyver="v1.0.0-beta-26-g8f7e861" # this is the version that I used in devs
+
+function print_usage {
+
+    echo " *get_dependencies *"
+    echo " > checks out the external libraries needed for this readout software"
+    echo " > all sw checked out are header only, so don't you fret none"
+    echo " > expected outcome: a new directory in the calling directory that is"
+    echo " > named \"external\" wherein some stuff will be"
+    echo ""
+    echo " usage: __execute__ this script as follows:"
+    echo "  ./get_dependencies [options]"
+    echo " options:"
+    echo "   -h|--help   print this help message"
+}
+
+function check_dir {
+
+    if [[ -d "external" ]]; then
+        echo "ERROR directory with name \"external\" already exists"
+        return 1
+    fi
+
+    mkdir external
+
+}
+
+function get_queue {
+
+    # check
+    if [[ ! -d "external" ]]; then
+        echo "ERROR cannot checkout queue, cannot find \"external\" directory in CWD"
+        return 1
+    fi
+
+    # move
+    pushd external > /dev/null
+
+    # check
+    git clone https://github.com/cameron314/concurrentqueue.git
+
+    if [[ ! -d "concurrentqueue" ]]; then
+        echo "ERROR there appears to be a failure in checking out the queue"
+        return 1
+    fi
+
+    # move
+    pushd concurrentqueue > /dev/null
+
+    # check
+    git checkout $moodyver
+    git describe --tags
+
+    # move
+    popd > /dev/null
+
+    # move
+    popd > /dev/null
+
+    return 0
+}
+
+function get_logger {
+
+    if [[ ! -d "external" ]]; then
+        echo "ERROR cannot checkout logger, cannot find \"external\" directory in CWD"
+        return 1
+    fi
+
+    # move
+    pushd external > /dev/null
+
+    # check 
+    git clone https://github.com/gabime/spdlog.git
+
+    if [[ ! -d "spdlog" ]]; then
+        echo "ERROR there appears to be a failure in checking out the logger"
+        return 1
+    fi
+
+    # move
+    pushd spdlog > /dev/null
+
+    # check
+    git checkout $spdver
+    git describe --tags
+
+    # move
+    popd > /dev/null
+
+    # move
+    popd > /dev/null
+
+    return 0
+}
+
+function get_mapper {
+
+    # check
+    if [[ ! -d "external" ]]; then
+        echo "ERROR cannot checkout logger, cannot find \"external\" directory in CWD"
+        return 1
+    fi
+
+    # move
+    pushd external > /dev/null
+
+    # check
+    git clone https://github.com/efficient/libcuckoo.git 
+
+    if [[ ! -d "libcuckoo" ]]; then
+        echo "ERROR there appears to be a failure in checking out the mapper"
+        return 1
+    fi
+
+    # move
+    pushd libcuckoo > /dev/null
+
+    # check
+    git checkout $cuckoover 
+    git describe --tags
+
+    # move
+    popd > /dev/null
+
+    # move
+    popd > /dev/null
+
+    return 0
+
+}
+
+function main {
+
+    # lets do some arg parsin'
+    while test $# -gt 0
+    do
+        case $1 in
+            -h)
+                print_usage
+                return 0
+                ;;
+            --help)
+                print_usage
+                return 0
+                ;;
+            *)
+                echo "error Invalid argument provided (=${1})"
+                return 1
+                ;;
+        esac
+        shift
+    done
+
+    if ! check_dir ; then return 1; fi
+
+    if ! get_queue ; then return 1; fi
+
+    if ! get_logger ; then return 1; fi
+
+    if ! get_mapper ; then return 1; fi
+
+    echo "all done!"
+}
+
+
+#_____________
+main $*

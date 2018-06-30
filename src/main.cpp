@@ -226,9 +226,7 @@ int main(int argc, char* argv[]) {
     std::atomic_bool build_flag(true);
 
     for(size_t nl = 0; nl < n_listeners; nl++) {
-        builders.push_back( new DataBuilder( listener_queues.at(nl), std::ref(l1_hash), map_cond, map_mutex, io_service, std::ref(build_flag)) );
-        //builders.push_back( new DataBuilder( listener_queue,  output_l1_queue, map_cond, map_mutex, io_service, std::ref(build_flag)) );
-        io_service->post(boost::bind(&DataBuilder::build, builders.at(nl)));
+        builders.push_back( new DataBuilder( listener_queues.at(nl), std::ref(l1_hash), map_cond, map_mutex, std::ref(build_flag)) );
     }
 
 
@@ -244,7 +242,6 @@ int main(int argc, char* argv[]) {
     std::shared_ptr<EventBuilder> indexer;
     std::atomic_int indexer_flag(0);
     indexer = std::make_shared<EventBuilder>( n_listeners, std::ref(l1_hash), map_mutex, map_cond, std::ref(indexer_flag), n_to_rec );
-    //indexer = std::make_shared<EventBuilder>( n_listeners, output_l1_queue, map_mutex, map_cond, std::ref(indexer_flag) );
 
     std::cin >> flag;
     logger->info("Starting indexer");

@@ -15,7 +15,6 @@ DataBuilder::DataBuilder(moodycamel::ConcurrentQueue<DataFragment*>* input_queue
         L1IndexHash & l1_hash,
         std::shared_ptr<std::condition_variable> map_condition,
         std::shared_ptr<std::mutex> map_mutex,
-        std::shared_ptr<boost::asio::io_service> io_service,
         std::atomic_bool & build_flag) :
             consumer_token(nullptr),
             producer_token(nullptr),
@@ -23,7 +22,6 @@ DataBuilder::DataBuilder(moodycamel::ConcurrentQueue<DataFragment*>* input_queue
 {
 
     logger = spdlog::get("mm_ddaq");
-    m_io_service = io_service;
 
     //m_out_queue = output_queue;
     //m_l1_index = l1_index;
@@ -40,7 +38,7 @@ DataBuilder::DataBuilder(moodycamel::ConcurrentQueue<DataFragment*>* input_queue
 void DataBuilder::start() {
     m_thread = std::thread( [this]() {
         consumer_token = new moodycamel::ConsumerToken(*m_in_queue);
-        m_io_service->run();
+        build();
     });
 }
 
@@ -57,8 +55,6 @@ void DataBuilder::build()
     uint32_t current_l1id = 0xffffffff;
     bool is_start = true;
     while(continue_building()) {
-
-        if(m_io_service->stopped()) break;
 
 //        std::this_thread::sleep_for(std::chrono::microseconds(750));
         DataFragment* fragment = nullptr;

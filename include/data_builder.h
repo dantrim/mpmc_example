@@ -35,7 +35,6 @@ class DataBuilder {
             //moodycamel::ConcurrentQueue<DataFragment*>* output_queue,
             std::shared_ptr<std::condition_variable> map_condition,
             std::shared_ptr<std::mutex> map_mutex,
-            std::shared_ptr<boost::asio::io_service> io_service,
             std::atomic_bool & build_flag);
 
         void start();
@@ -61,7 +60,6 @@ class DataBuilder {
         L1IndexHash* m_l1_hash;
         //std::map<unsigned int, moodycamel::ConcurrentQueue<DataFragment>>* m_out_queue;
         std::thread m_thread;
-        std::shared_ptr<boost::asio::io_service> m_io_service;
 
         moodycamel::ConsumerToken* consumer_token;
         moodycamel::ProducerToken* producer_token;

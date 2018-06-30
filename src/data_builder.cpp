@@ -66,6 +66,7 @@ void DataBuilder::build()
             continue;
         }
         //logger->info("DataBuilder::build  link {0:d} queue size {1:d}", fragment->link_id(), m_in_queue->size_approx());
+        //std::this_thread::sleep_for(std::chrono::microseconds(750));
         moodycamel::ConcurrentQueue<DataFragment*>* qfrag = nullptr;
         if(m_l1_hash->find(fragment->l1id(), qfrag)) {
             if(!qfrag->try_enqueue(fragment)) {

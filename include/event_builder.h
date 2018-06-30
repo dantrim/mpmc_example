@@ -32,7 +32,8 @@ class EventBuilder {
             //L1IndexMap* l1_index,
             L1IndexHash & l1_hash,
             std::shared_ptr<std::mutex> map_mutex, std::shared_ptr<std::condition_variable> map_cond,
-            std::atomic_int & build_flag);
+            std::atomic_int & build_flag,
+            int n_to_rec);
 
         void build();
         void start();
@@ -110,6 +111,7 @@ class EventBuilder {
         std::chrono::system_clock::time_point m_startTime;
         float m_last_rate;
 
+        int n_to_exp;
         
 
 };

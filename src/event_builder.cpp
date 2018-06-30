@@ -13,7 +13,8 @@ EventBuilder::EventBuilder(
     L1IndexHash & l1_hash,
     std::shared_ptr<std::mutex> map_mutex,
     std::shared_ptr<std::condition_variable> map_cond,
-    std::atomic_int & build_flag) :
+    std::atomic_int & build_flag,
+    int n_to_exp) :
         m_n_links(n_links),
         m_less(0),
         m_more(0),
@@ -22,7 +23,8 @@ EventBuilder::EventBuilder(
         m_n_ok(0),
         m_n_total(0),
         m_map_mutex(map_mutex),
-        m_map_cond(map_cond)
+        m_map_cond(map_cond),
+        n_to_exp(n_to_exp)
 {
     logger = spdlog::get("mm_ddaq");
     m_l1_counts.clear();
@@ -93,8 +95,8 @@ void EventBuilder::build()
 
         m_n_total++;
 
-        if(m_n_total>50000) {
-            logger->info("EventBuilder::build exiting: total OK = {}", m_n_ok);
+        if(n_to_exp>0 && m_n_total > n_to_exp) {
+            logger->info("EventBuilder::build exiting: TOTAL = {0:d}, TOTAL OK = {1:d} --> {2}\%", m_n_total, m_n_ok, 100 * float(m_n_ok) / float(m_n_total));
             exit(0);
         }
 

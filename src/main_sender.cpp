@@ -17,12 +17,17 @@ using namespace std;
 int continue_sending = 0;
 std::mutex flag_mutex;
 std::string ip = "127.0.0.1";
+int n_senders = 3;
+int n_to_send = -1;
+int period = 500; // microseconds
 
 void help() {
     cout << "main_sender" << endl;
     cout << endl;
     cout << "Options:" << endl;
     cout << " -n|--n-senders    number of independent sending sockets [default: 1]" << endl;
+    cout << " --total           total number of events to send [default:-1 (no limit)]" << endl;
+    cout << " --period          sending period in micro-seconds" << endl;
     cout << " -h|--help         print this help message" << endl;
 }
 
@@ -59,15 +64,15 @@ void sender_thread(int id, std::shared_ptr<boost::asio::io_service> service) {
     int n_send = 0;
     while(true) {
         n_send++;
-        for(int i = 0; i < 1; i++) {
+        for(int i = 0; i < n_senders; i++) {
             vector<uint32_t> data_to_send = { l1id, (uint32_t)data.at(i) };
             for(int j = 0; j < 6; j++) data_to_send.push_back(data.at(i));
             sender->send_to(boost::asio::buffer( data_to_send ), endpoints.at(i) );
         }
-        std::this_thread::sleep_for(std::chrono::microseconds(200));
+        std::this_thread::sleep_for(std::chrono::microseconds(period));
         //std::this_thread::sleep_for(std::chrono::milliseconds(1));
         l1id++;
-        if(n_send>=50000) { exit(0); break;}
+        if(n_to_send>0 && n_send>n_to_send) { cout << "done sending" << endl; exit(0); break; }
         std::lock_guard<std::mutex> lock(flag_mutex);
         if(continue_sending > 0) break;
     }
@@ -76,12 +81,13 @@ void sender_thread(int id, std::shared_ptr<boost::asio::io_service> service) {
 
 int main(int argc, char* argv[]) {
 
-    int n_senders = 1;
 
     int optin(1);
     while(optin < argc) {
         string in = argv[optin];
         if      (in == "-n" || in == "--n-senders") { n_senders = std::atoi(argv[++optin]); }
+        else if (in == "--total") { n_to_send = std::stoi(argv[++optin]); }
+        else if (in == "--period" || in == "-") { period = std::stoi(argv[++optin]); }
         else if (in == "-h" || in == "--help") { help(); return 0; }
         else {
             cout << "main_sender    ERROR unknown command line argument (=" << in << ") provided" << endl;

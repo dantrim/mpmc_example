@@ -34,6 +34,11 @@ using namespace std;
 
 void help()
 {
+    cout << "options:" << endl;
+    cout << " -n|--n-listeners        number of listeners [default: 1]" << endl;
+    cout << " -m|--map-test           run the test map functions instead of the listeners" << endl;
+    cout << " -r|--n-rec              number of events to receive/expect, and exit after [default:-1 (no limit)]" << endl;
+    cout << " -h|--help               print this help message" << endl;
     return;
 }
 
@@ -160,12 +165,14 @@ int main(int argc, char* argv[]) {
     spdlog::register_logger(logger);
 
     int n_listeners = 1;
+    int n_to_rec = -1;
 
     int optin(1);
     while(optin < argc) {
         string in = argv[optin];
         if      (in == "-n" || in == "--n-listeners") { n_listeners = std::atoi(argv[++optin]); }
         else if (in == "-m" || in == "--map-test") { test_map_cuckoo(); return 0; }
+        else if (in == "-r" || in == "--n-rec") { n_to_rec = std::stoi(argv[++optin]); }
         else if (in == "-h" || in == "--help") { help(); return 0; }
         else {
             logger->error("unknown input argument ({}) provided", in);
@@ -236,7 +243,7 @@ int main(int argc, char* argv[]) {
     // build the L1 indexer
     std::shared_ptr<EventBuilder> indexer;
     std::atomic_int indexer_flag(0);
-    indexer = std::make_shared<EventBuilder>( n_listeners, std::ref(l1_hash), map_mutex, map_cond, std::ref(indexer_flag) );
+    indexer = std::make_shared<EventBuilder>( n_listeners, std::ref(l1_hash), map_mutex, map_cond, std::ref(indexer_flag), n_to_rec );
     //indexer = std::make_shared<EventBuilder>( n_listeners, output_l1_queue, map_mutex, map_cond, std::ref(indexer_flag) );
 
     std::cin >> flag;
